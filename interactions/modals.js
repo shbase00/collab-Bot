@@ -9,7 +9,15 @@ async function handleModal(interaction) {
     const tier = parts[2];
     const community = decodeURIComponent(parts.slice(3).join('_'));
 
-    const contestLink = interaction.fields.getTextInputValue('contest_link');
+    let contestLinksRaw = interaction.fields.getTextInputValue('contest_link');
+
+    // نظّف النص: حوّل الأسطر الجديدة لكود موحّد " | "
+    // وامسح المسافات الزيادة
+    const contestLink = contestLinksRaw
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .join(' | ');
 
     // دايمًا INSERT صف جديد
     db.prepare(
@@ -26,13 +34,13 @@ async function handleModal(interaction) {
       Date.now()
     );
 
-    return interaction.reply({ content: `✅ Contest submitted for **${community}**`, ephemeral: true });
+    return interaction.reply({ content: `✅ Raffle / Contest links submitted for **${community}**`, ephemeral: true });
   }
 
   // ===== walletModal_<rowId> =====
   if (parts[0] === 'walletModal') {
     const rowId = parts[1];
-    const sheetLink = interaction.fields.getTextInputValue('sheet_link');
+    const sheetLink = interaction.fields.getTextInputValue('sheet_link').trim();
 
     db.prepare(
       `UPDATE submissions 

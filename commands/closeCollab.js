@@ -1,4 +1,9 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  StringSelectMenuBuilder
+} = require('discord.js');
 const db = require('../db');
 
 module.exports = {
@@ -8,6 +13,7 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
+    // نجيب الشراكات الشغالة فقط
     const rows = db.prepare("SELECT id, name FROM collabs WHERE status = 'active' ORDER BY id DESC").all();
 
     if (!rows.length) {

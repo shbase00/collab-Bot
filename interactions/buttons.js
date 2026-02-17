@@ -5,7 +5,6 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   AttachmentBuilder,
-  PermissionsBitField,
   ChannelType
 } = require('discord.js');
 const db = require('../db');
@@ -24,7 +23,6 @@ async function handleButton(interaction) {
   // ======================================================
   // ================== EXPORT CSV =========================
   // ======================================================
-  // زرار Export CSV في الـ Panel
   if (interaction.isButton() && interaction.customId === 'export_csv') {
     const rows = db.prepare('SELECT id, name, status FROM collabs ORDER BY id DESC').all();
     if (!rows.length) {
@@ -34,7 +32,7 @@ async function handleButton(interaction) {
     const select = new StringSelectMenuBuilder()
       .setCustomId('select_export')
       .setPlaceholder('Choose a collab')
-      .addOptions(rows.map(r => ({ label: `${r.name} (${r.status})`, value: String(r.id) })));
+      .addOptions(rows.map(r => ({ label: `${r.name}`, value: String(r.id) })));
 
     return interaction.reply({
       content: 'Choose collab to export:',
@@ -48,9 +46,10 @@ async function handleButton(interaction) {
     const collabId = interaction.values[0];
     const data = db.prepare('SELECT * FROM submissions WHERE collab_id = ?').all(collabId);
 
-    let csv = 'username,tier,community,contest_link,sheet_link,contest_time,sheet_time\n';
+    // CSV الجديد: 4 أعمدة بس
+    let csv = 'sheet_link,raffle_links,username,community\n';
     for (const r of data) {
-      csv += `"${r.username}","${r.tier}","${r.community}","${r.contest_link || ''}","${r.sheet_link || ''}","${r.contest_time || ''}","${r.sheet_time || ''}"\n`;
+      csv += `"${r.sheet_link || ''}","${r.contest_link || ''}","${r.username || ''}","${r.community || ''}"\n`;
     }
 
     const filePath = `export_${collabId}.csv`;
@@ -95,20 +94,36 @@ async function handleButton(interaction) {
     }
 
     if (ch) {
-      const newName = ch.name.replace('-active', '') + '-closed';
-      await ch.setName(newName);
-      await ch.setParent(closedCat.id);
-      await ch.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
+      // غيّر الاسم لـ 🔴 بدل أي 🟢
+      let newName = ch.name.replace(/^🟢-/, '');
+      if (!newName.startsWith('🔴-')) {
+        newName = `🔴-${newName}`;
+      }
+
+      await ch.setName(newName).catch(() => {});
+      await ch.setParent(closedCat.id).catch(() => {});
+      await ch.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false }).catch(() => {});
     }
 
     // حدّث الداتابيز
     db.prepare('UPDATE collabs SET status = ? WHERE id = ?').run('closed', collabId);
 
-    // لوج
+    // لوج مفصّل
     const logs = guild.channels.cache.find(c => c.name === 'logs');
     if (logs) {
-      const count = db.prepare('SELECT COUNT(*) as n FROM submissions WHERE collab_id = ?').get(collabId).n;
-      await logs.send(`🔴 Collab Closed: **${collab.name}** | Submissions: **${count}**`);
+      const contestCount = db.prepare(
+        "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND contest_link IS NOT NULL AND contest_link != ''"
+      ).get(collabId).n;
+
+      const walletCount = db.prepare(
+        "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND sheet_link IS NOT NULL AND sheet_link != ''"
+      ).get(collabId).n;
+
+      await logs.send(
+        `🔴 Collab Closed: **${collab.name}**\n` +
+        `📝 Contest submissions: **${contestCount}**\n` +
+        `💼 Wallet sheets: **${walletCount}**`
+      );
     }
 
     return interaction.update({
@@ -218,7 +233,7 @@ async function handleButton(interaction) {
   }
 
   // ======================================================
-  // ===== Community Chosen -> Show Modal
+  // ===== Community Chosen -> Show Modal (Textarea)
   // ======================================================
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith('chooseCommunity_')) {
     const parts = interaction.customId.split('_');
@@ -228,12 +243,12 @@ async function handleButton(interaction) {
 
     const modal = new ModalBuilder()
       .setCustomId(`contestModal_${collabId3}_${tier}_${encodeURIComponent(community)}`)
-      .setTitle('Submit Contest Link');
+      .setTitle('Submit Raffle / Contest Links');
 
     const contestInput = new TextInputBuilder()
       .setCustomId('contest_link')
-      .setLabel('Contest Link')
-      .setStyle(TextInputStyle.Short)
+      .setLabel('Raffle / Contest Links (you can add multiple)')
+      .setStyle(TextInputStyle.Paragraph) // يسمح بأكتر من لينك
       .setRequired(true);
 
     modal.addComponents(new ActionRowBuilder().addComponents(contestInput));
