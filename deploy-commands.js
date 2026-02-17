@@ -7,8 +7,16 @@ const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
 
 for (const file of fs.readdirSync(commandsPath)) {
+  if (!file.endsWith('.js')) continue; // تجاهل أي ملف مش JS
+
   const command = require(`./commands/${file}`);
-  commands.push(command.data.toJSON());
+
+  // تأكد إن الملف فيه data قبل ما تضيفه
+  if (command && command.data) {
+    commands.push(command.data.toJSON());
+  } else {
+    console.warn(`⚠️ Skipped ${file}: no command.data found`);
+  }
 }
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -19,7 +27,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
     await rest.put(
       Routes.applicationGuildCommands(
-        "1471686059690692698", // <-- Application ID بتاعك
+        "1471686059690692698", // Application ID بتاعك
         process.env.GUILD_ID
       ),
       { body: commands }
@@ -27,6 +35,6 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
     console.log('✅ Slash commands registered!');
   } catch (error) {
-    console.error(error);
+    console.error('❌ Failed to register commands:', error);
   }
 })();
