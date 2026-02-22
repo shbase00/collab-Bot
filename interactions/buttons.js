@@ -5,6 +5,8 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   AttachmentBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ChannelType
 } = require('discord.js');
 const db = require('../db');
@@ -21,28 +23,102 @@ const TIERS = {
 async function handleButton(interaction) {
 
   // ======================================================
-  // ================== EXPORT CSV =========================
+  // ================== EXPORT CSV (PAGINATED) =============
   // ======================================================
   if (interaction.isButton() && interaction.customId === 'export_csv') {
-    const rows = db.prepare('SELECT id, name, status FROM collabs ORDER BY id DESC').all();
+    const rows = db.prepare('SELECT id, name FROM collabs ORDER BY id DESC').all();
     if (!rows.length) {
       return interaction.reply({ content: 'No collabs.', ephemeral: true });
     }
 
+    const page = 0;
+    const pageSize = 25;
+    const pageItems = rows.slice(page * pageSize, (page + 1) * pageSize);
+
     const select = new StringSelectMenuBuilder()
-      .setCustomId('select_export')
+      .setCustomId(`select_export_page_${page}`)
       .setPlaceholder('Choose a collab')
-      .addOptions(rows.map(r => ({ label: `${r.name}`, value: String(r.id) })));
+      .addOptions(
+        pageItems.map(r => ({
+          label: r.name,
+          value: String(r.id)
+        }))
+      );
+
+    const row1 = new ActionRowBuilder().addComponents(select);
+
+    const maxPage = Math.floor((rows.length - 1) / pageSize);
+
+    const row2 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`export_prev_${page}`)
+        .setLabel('⬅ Prev')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
+      new ButtonBuilder()
+        .setCustomId(`export_next_${page}`)
+        .setLabel('Next ➡')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(maxPage === 0)
+    );
 
     return interaction.reply({
       content: 'Choose collab to export:',
-      components: [new ActionRowBuilder().addComponents(select)],
+      components: [row1, row2],
       ephemeral: true
     });
   }
 
-  // اختيار الشراكة للتصدير
-  if (interaction.isStringSelectMenu() && interaction.customId === 'select_export') {
+  // ===== Pagination Buttons for Export =====
+  if (interaction.isButton() && (interaction.customId.startsWith('export_next_') || interaction.customId.startsWith('export_prev_'))) {
+    const rows = db.prepare('SELECT id, name FROM collabs ORDER BY id DESC').all();
+    const pageSize = 25;
+
+    let page = parseInt(interaction.customId.split('_').pop(), 10);
+
+    if (interaction.customId.startsWith('export_next_')) page++;
+    else page--;
+
+    if (page < 0) page = 0;
+
+    const maxPage = Math.floor((rows.length - 1) / pageSize);
+    if (page > maxPage) page = maxPage;
+
+    const pageItems = rows.slice(page * pageSize, (page + 1) * pageSize);
+
+    const select = new StringSelectMenuBuilder()
+      .setCustomId(`select_export_page_${page}`)
+      .setPlaceholder('Choose a collab')
+      .addOptions(
+        pageItems.map(r => ({
+          label: r.name,
+          value: String(r.id)
+        }))
+      );
+
+    const row1 = new ActionRowBuilder().addComponents(select);
+
+    const row2 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`export_prev_${page}`)
+        .setLabel('⬅ Prev')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page === 0),
+      new ButtonBuilder()
+        .setCustomId(`export_next_${page}`)
+        .setLabel('Next ➡')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page >= maxPage)
+    );
+
+    return interaction.update({
+      content: 'Choose collab to export:',
+      components: [row1, row2]
+    });
+  }
+
+  // ===== اختيار الشراكة للتصدير =====
+  if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_export_page_')) {
     const collabId = interaction.values[0];
     const data = db.prepare('SELECT * FROM submissions WHERE collab_id = ?').all(collabId);
 
@@ -78,7 +154,6 @@ async function handleButton(interaction) {
 
     const guild = interaction.guild;
 
-    // هات كاتيجوري المغلقة
     let closedCat = guild.channels.cache.find(c => c.name === 'collabs-closed' && c.type === ChannelType.GuildCategory);
     if (!closedCat) {
       closedCat = await guild.channels.create({
@@ -87,28 +162,22 @@ async function handleButton(interaction) {
       });
     }
 
-    // هات قناة الشراكة
     let ch = null;
     if (collab.channel_id) {
       ch = await guild.channels.fetch(collab.channel_id).catch(() => null);
     }
 
     if (ch) {
-      // غيّر الاسم لـ 🔴 بدل أي 🟢
       let newName = ch.name.replace(/^🟢-/, '');
-      if (!newName.startsWith('🔴-')) {
-        newName = `🔴-${newName}`;
-      }
+      if (!newName.startsWith('🔴-')) newName = `🔴-${newName}`;
 
       await ch.setName(newName).catch(() => {});
       await ch.setParent(closedCat.id).catch(() => {});
       await ch.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false }).catch(() => {});
     }
 
-    // حدّث الداتابيز
     db.prepare('UPDATE collabs SET status = ? WHERE id = ?').run('closed', collabId);
 
-    // لوج مفصّل
     const logs = guild.channels.cache.find(c => c.name === 'logs');
     if (logs) {
       const contestCount = db.prepare(
@@ -172,7 +241,6 @@ async function handleButton(interaction) {
         return interaction.reply({ content: '❌ You have no pending contest to attach a wallet to.', ephemeral: true });
       }
 
-      // لو صف واحد بس → افتح Modal مباشرة
       if (rows.length === 1) {
         const rowId = rows[0].id;
 
@@ -190,7 +258,6 @@ async function handleButton(interaction) {
         return interaction.showModal(modal);
       }
 
-      // لو أكتر من واحد → خلي المستخدم يختار Community
       const select = new StringSelectMenuBuilder()
         .setCustomId('chooseWalletRow')
         .setPlaceholder('Choose community to attach wallet')
@@ -210,7 +277,7 @@ async function handleButton(interaction) {
   }
 
   // ======================================================
-  // ===== Tier Chosen -> UPDATE message to show Communities
+  // ===== Tier Chosen -> Show Communities =====
   // ======================================================
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith('chooseTier_')) {
     const collabId2 = interaction.customId.split('_')[1];
@@ -233,7 +300,7 @@ async function handleButton(interaction) {
   }
 
   // ======================================================
-  // ===== Community Chosen -> Show Modal (Textarea)
+  // ===== Community Chosen -> Show Modal =====
   // ======================================================
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith('chooseCommunity_')) {
     const parts = interaction.customId.split('_');
@@ -248,7 +315,7 @@ async function handleButton(interaction) {
     const contestInput = new TextInputBuilder()
       .setCustomId('contest_link')
       .setLabel('Raffle / Contest Links (you can add multiple)')
-      .setStyle(TextInputStyle.Paragraph) // يسمح بأكتر من لينك
+      .setStyle(TextInputStyle.Paragraph)
       .setRequired(true);
 
     modal.addComponents(new ActionRowBuilder().addComponents(contestInput));
@@ -256,7 +323,7 @@ async function handleButton(interaction) {
   }
 
   // ======================================================
-  // ===== Wallet Row Chosen -> Show Modal
+  // ===== Wallet Row Chosen -> Show Modal =====
   // ======================================================
   if (interaction.isStringSelectMenu() && interaction.customId === 'chooseWalletRow') {
     const rowId = interaction.values[0];
