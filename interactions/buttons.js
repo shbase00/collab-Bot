@@ -15,9 +15,8 @@ const fs = require('fs');
 // ====== قوائم المجتمعات ======
 const TIERS = {
   T1: ['TropadaDrih','CelestialLab','ZaxWeb3','wazoogangg','Nasbelaeth','BlobaETH','word4zz_','AlphaEmpire','honeyratdao','imperial_alpha_','DreamersWeb3'],
-  T2_1: ['casperllz','Mintopia_alpha','MummiesNeverDie','JOKER__NFTs','AK_MIINT','Worldnft','TwinkleNFTs','Basedking','alphanft_7','QuantumMint','AK_ALPHAA','CryptoArias','Soren','squapesonape','lil_lumi','nft_whale17','NFTS50_nfts','SloppyApeYC','Web3_lab_x','orbex','ThunderAlpha'],
-  T2_2: ['VoofiOfficial','PerrysOnApe'],
-  T3: ['metagems_nft','MythicMintDAO','MintropolisDAO','Iion_Mint','bazuka_Outlaws','MintFlowAlpha','Ace'],
+  T2: ['casperllz','Mintopia_alpha','MummiesNeverDie','JOKER__NFTs','AK_MIINT','Worldnft','TwinkleNFTs','Basedking','alphanft_7','QuantumMint','AK_ALPHAA','CryptoArias','Soren','squapesonape','lil_lumi','nft_whale17','NFTS50_nfts','SloppyApeYC','Web3_lab_x','orbex','ThunderAlpha','VoofiOfficial','PerrysOnApe'],
+  T3: ['metagems_nft','MythicMintDAO','MintropolisDAO','Iion_Mint','bazuka_Outlaws','MintFlowAlpha','Ace','Arya_00'],
 };
 // =============================
 
