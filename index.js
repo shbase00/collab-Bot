@@ -14,17 +14,42 @@ const client = new Client({
 
 // ====== Load Commands ======
 client.commands = new Collection();
+
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const command = require(filePath);
-  if ('data' in command && 'execute' in command) {
-    client.commands.set(command.data.name, command);
+console.log("Loading commands from:", commandsPath);
+
+if (!fs.existsSync(commandsPath)) {
+  console.error("❌ Commands folder not found!");
+} else {
+
+  const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+  for (const file of commandFiles) {
+
+    try {
+
+      const filePath = path.join(commandsPath, file);
+
+      const command = require(filePath);
+
+      if ('data' in command && 'execute' in command) {
+
+        client.commands.set(command.data.name, command);
+
+        console.log("✅ Loaded command:", command.data.name);
+
+      }
+
+    } catch (err) {
+
+      console.error("❌ Error loading command:", file, err);
+
+    }
+
   }
-}
 
+}
 // ====== Helpers: Ensure Categories & Channels ======
 async function ensureStructure(guild) {
   // Categories
@@ -184,4 +209,5 @@ client.on('interactionCreate', async interaction => {
 
 // ====== Login ======
 client.login(process.env.DISCORD_TOKEN);
+
 
