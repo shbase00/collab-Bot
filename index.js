@@ -243,7 +243,19 @@ client.on('interactionCreate', async interaction => {
 });
 
 // ====== LOGIN (آخر سطر في الملف) ======
+const http = require("http");
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("Bot running");
+}).listen(PORT, () => {
+  console.log("Health server running on port", PORT);
+});
+
 console.log("Connecting to Discord...");
+
 client.login(process.env.DISCORD_TOKEN)
   .then(() => {
     console.log("✅ LOGIN SUCCESS");
