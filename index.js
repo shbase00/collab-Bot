@@ -255,10 +255,6 @@ client.on('interactionCreate', async interaction => {
 console.log("TOKEN EXISTS:", !!process.env.DISCORD_TOKEN);
 console.log("TOKEN LENGTH:", process.env.DISCORD_TOKEN?.length);
 
-client.login(process.env.DISCORD_TOKEN)
-  .then(() => {
-    console.log("LOGIN SUCCESS");
-  })
-  .catch(err => {
-    console.error("LOGIN FAILED:", err);
-  });
+console.log("REACHED LOGIN");
+client.login(process.env.DISCORD_TOKEN);
+
