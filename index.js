@@ -1,3 +1,10 @@
+// Prevent running multiple instances
+if (global.__bot_running__) {
+  console.log("Bot already running. Exiting second instance.");
+  process.exit(0);
+}
+global.__bot_running__ = true;
+
 require('dotenv').config();
 
 console.log("BOT STARTING...");
@@ -263,3 +270,4 @@ client.login(process.env.DISCORD_TOKEN)
   .catch(err => {
     console.error("❌ LOGIN ERROR:", err);
   });
+
