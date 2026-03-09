@@ -40,7 +40,7 @@ async function handleButton(interaction) {
     const lines = pageItems.length
       ? pageItems.map(r => {
           const icon = r.status === 'active' ? '🟢' : '🔴';
-          return ${icon} ${r.name};
+          return `${icon} ${r.name}`;
         }).join('\n')
       : 'No collabs found.';
 
@@ -61,7 +61,7 @@ async function handleButton(interaction) {
     );
 
     return interaction.update({
-      content: 📊 **${status.toUpperCase()} Collabs**\n\n${lines},
+      content: `📊 **${status.toUpperCase()} Collabs**\n\n${lines}`,
       components: [row]
     });
   }
@@ -98,7 +98,7 @@ async function handleButton(interaction) {
     const lines = pageItems.length
       ? pageItems.map(r => {
           const icon = r.status === 'active' ? '🟢' : '🔴';
-          return ${icon} ${r.name};
+          return `${icon} ${r.name}`;
         }).join('\n')
       : 'No collabs found.';
 
@@ -117,7 +117,7 @@ async function handleButton(interaction) {
     );
 
     return interaction.update({
-      content: 📊 **${status.toUpperCase()} Collabs**\n\n${lines},
+      content: `📊 **${status.toUpperCase()} Collabs**\n\n${lines}`,
       components: [row]
     });
   }
@@ -166,10 +166,10 @@ async function handleButton(interaction) {
     let csv = "sheet_link,raffle_links,username,community\n";
 
     for (const r of data) {
-      csv += "${r.sheet_link || ''}","${r.contest_link || ''}","${r.username || ''}","${r.community || ''}"\n;
+      csv += `"${r.sheet_link || ''}","${r.contest_link || ''}","${r.username || ''}","${r.community || ''}"\n`;
     }
 
-    const filePath = export_${collabId}.csv;
+    const filePath = `export_${collabId}.csv`;
 
     fs.writeFileSync(filePath, csv);
 
@@ -185,5 +185,3 @@ async function handleButton(interaction) {
 }
 
 module.exports = { handleButton };
-      
-     
