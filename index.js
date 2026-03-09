@@ -208,6 +208,8 @@ client.on('interactionCreate', async interaction => {
 });
 
 // ====== Login ======
+console.log("TOKEN:", process.env.DISCORD_TOKEN);
 client.login(process.env.DISCORD_TOKEN);
+
 
 
