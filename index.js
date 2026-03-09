@@ -252,10 +252,13 @@ client.on('interactionCreate', async interaction => {
 });
 
 // ====== Login ======
+console.log("TOKEN EXISTS:", !!process.env.DISCORD_TOKEN);
+console.log("TOKEN LENGTH:", process.env.DISCORD_TOKEN?.length);
+
 client.login(process.env.DISCORD_TOKEN)
   .then(() => {
-    console.log("✅ LOGIN SUCCESS");
+    console.log("LOGIN SUCCESS");
   })
   .catch(err => {
-    console.error("❌ LOGIN FAILED:", err);
+    console.error("LOGIN FAILED:", err);
   });
