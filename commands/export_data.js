@@ -17,8 +17,13 @@ module.exports = {
 
     await interaction.deferReply({ ephemeral: true });
 
+    // اسحب البيانات
     const collabs = db.prepare("SELECT * FROM collabs").all();
     const submissions = db.prepare("SELECT * FROM submissions").all();
+
+    // تأكد كم صف رجع
+    const collabCount = collabs.length;
+    const subCount = submissions.length;
 
     let csv = "TYPE,ID,NAME,STATUS,USER,TIER,COMMUNITY,CONTEST,WALLET\n";
 
@@ -32,10 +37,11 @@ module.exports = {
       csv += `SUBMISSION,${s.id},,${s.collab_id},${s.username},${s.tier},${s.community},${s.contest_link},${s.sheet_link}\n`;
     }
 
+    // احفظ الملف
     fs.writeFileSync("export.csv", csv);
 
     await interaction.editReply({
-      content: "Database exported successfully.",
+      content: `Exported ${collabCount} collabs and ${subCount} submissions.`,
       files: ["export.csv"]
     });
 
