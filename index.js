@@ -7,8 +7,6 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits, ChannelType, PermissionsBitField } = require('discord.js');
 const db = require('./db');
 
-// ===== DEBUG: show files inside volume =====
-
 try {
   const files = fs.readdirSync("/data");
   console.log("FILES IN /data:", files);
@@ -16,6 +14,13 @@ try {
   console.log("Error reading /data:", err);
 }
 
+// show DB size
+try {
+  const stats = fs.statSync("/data/collabs.db");
+  console.log("DB SIZE:", stats.size);
+} catch (err) {
+  console.log("Error reading DB size:", err);
+}
 console.log("Database path: /data/collabs.db");
 
 // ====== Create Client ======
@@ -276,5 +281,6 @@ client.login(process.env.DISCORD_TOKEN)
   .catch(err => {
     console.error("Discord login error:", err);
   });
+
 
 
