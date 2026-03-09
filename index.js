@@ -14,6 +14,9 @@ try {
   ).all();
 
   console.log("TABLES:", tables);
+  
+  const count = db.prepare("SELECT COUNT(*) as c FROM collabs").get();
+console.log("COLLABS COUNT:", count);
 } catch (err) {
   console.log("Error reading tables:", err);
 }
@@ -284,6 +287,7 @@ client.login(process.env.DISCORD_TOKEN)
   .catch(err => {
     console.error("Discord login error:", err);
   });
+
 
 
 
