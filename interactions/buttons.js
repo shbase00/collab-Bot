@@ -20,396 +20,170 @@ const TIERS = {
   T3: ['metagems_nft','MythicMintDAO','MintropolisDAO','Iion_Mint','bazuka_Outlaws','MintFlowAlpha','Ace','Arya_00'],
 };
 
-// =====================================================
 async function handleButton(interaction) {
 
-// =====================================================
-// EXPORT CSV
-// =====================================================
-if (interaction.isButton() && interaction.customId === 'export_csv') {
-
-  const rows = db.prepare('SELECT id, name FROM collabs ORDER BY id DESC').all();
-
-  if (!rows.length) {
-    return interaction.reply({ content:'No collabs.', ephemeral:true });
-  }
-
-  const page = 0;
-  const pageSize = 25;
-  const maxPage = Math.floor((rows.length - 1) / pageSize);
-
-  const pageItems = rows.slice(page * pageSize, (page + 1) * pageSize);
-
-  const select = new StringSelectMenuBuilder()
-  .setCustomId(`select_export_page_${page}`)
-  .setPlaceholder('Choose a collab')
-  .addOptions(
-    pageItems.map(r => ({
-      label: r.name,
-      value: String(r.id)
-    }))
-  );
-
-  const row1 = new ActionRowBuilder().addComponents(select);
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`export_prev_${page}`)
-      .setLabel('⬅ Prev')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true),
-
-    new ButtonBuilder()
-      .setCustomId(`export_next_${page}`)
-      .setLabel('Next ➡')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(maxPage === 0)
-  );
-
-  return interaction.reply({
-    content:'Choose collab to export:',
-    components:[row1,row2],
-    ephemeral:true
-  });
-}
-
-// =====================================================
-// PAGINATION
-// =====================================================
-if (interaction.isButton() && (interaction.customId.startsWith('export_next_') || interaction.customId.startsWith('export_prev_'))) {
-
-  const rows = db.prepare('SELECT id, name FROM collabs ORDER BY id DESC').all();
-  const pageSize = 25;
-
-  let page = parseInt(interaction.customId.split('_').pop(),10);
-
-  if (interaction.customId.startsWith('export_next_')) page++;
-  else page--;
-
-  if (page < 0) page = 0;
-
-  const maxPage = Math.floor((rows.length - 1) / pageSize);
-  if (page > maxPage) page = maxPage;
-
-  const pageItems = rows.slice(page * pageSize, (page + 1) * pageSize);
-
-  const select = new StringSelectMenuBuilder()
-  .setCustomId(`select_export_page_${page}`)
-  .setPlaceholder('Choose a collab')
-  .addOptions(
-    pageItems.map(r => ({
-      label: r.name,
-      value: String(r.id)
-    }))
-  );
-
-  const row1 = new ActionRowBuilder().addComponents(select);
-
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`export_prev_${page}`)
-      .setLabel('⬅ Prev')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page === 0),
-
-    new ButtonBuilder()
-      .setCustomId(`export_next_${page}`)
-      .setLabel('Next ➡')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page >= maxPage)
-  );
-
-  return interaction.update({
-    content:'Choose collab to export:',
-    components:[row1,row2]
-  });
-}
-
-// =====================================================
-// EXPORT SELECT
-// =====================================================
-if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_export_page_')) {
-
-  const collabId = interaction.values[0];
-
-  const data = db.prepare(
-    'SELECT * FROM submissions WHERE collab_id = ?'
-  ).all(collabId);
-
-  let csv = 'sheet_link,raffle_links,username,community\n';
-
-  for (const r of data) {
-    csv += `"${r.sheet_link || ''}","${r.contest_link || ''}","${r.username || ''}","${r.community || ''}"\n`;
-  }
-
-  const filePath = `export_${collabId}.csv`;
-
-  fs.writeFileSync(filePath,csv);
-
-  await interaction.reply({
-    content:'Here is your CSV:',
-    files:[new AttachmentBuilder(filePath)],
-    ephemeral:true
-  });
-
-  fs.unlinkSync(filePath);
-
-  return;
-}
-
-// =====================================================
-// CLOSE COLLAB
-// =====================================================
-if (interaction.isStringSelectMenu() && interaction.customId === 'close_select') {
-
-  const collabId = interaction.values[0];
-  const collab = db.prepare('SELECT * FROM collabs WHERE id = ?').get(collabId);
-
-  if (!collab || collab.status === 'closed') {
-    return interaction.update({
-      content:'❌ Collab not found or already closed.',
-      components:[]
-    });
-  }
-
-  const guild = interaction.guild;
-
-  let closedCat = guild.channels.cache.find(
-    c => c.name === 'collabs-closed' && c.type === ChannelType.GuildCategory
-  );
-
-  if (!closedCat) {
-    closedCat = await guild.channels.create({
-      name:'collabs-closed',
-      type:ChannelType.GuildCategory
-    });
-  }
-
-  let ch = null;
-
-  if (collab.channel_id) {
-    ch = await guild.channels.fetch(collab.channel_id).catch(()=>null);
-  }
-
-  if (ch) {
-
-    let newName = ch.name.replace(/^🟢-/,'');
-    if (!newName.startsWith('🔴-')) newName = `🔴-${newName}`;
-
-    await ch.setName(newName).catch(()=>{});
-    await ch.setParent(closedCat.id).catch(()=>{});
-    await ch.permissionOverwrites.edit(
-      guild.roles.everyone,
-      { SendMessages:false }
-    ).catch(()=>{});
-  }
-
-  db.prepare(
-    'UPDATE collabs SET status = ? WHERE id = ?'
-  ).run('closed',collabId);
-
-  const logs = guild.channels.cache.find(c => c.name === 'logs');
-
-  if (logs) {
-
-    const contestCount = db.prepare(
-      "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND contest_link IS NOT NULL AND contest_link != ''"
-    ).get(collabId).n;
-
-    const walletCount = db.prepare(
-      "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND sheet_link IS NOT NULL AND sheet_link != ''"
-    ).get(collabId).n;
-
-    await logs.send(
-      `🔴 Collab Closed: **${collab.name}**\n` +
-      `📝 Contest submissions: **${contestCount}**\n` +
-      `💼 Wallet sheets: **${walletCount}**`
-    );
-  }
-
-  return interaction.update({
-    content:`✅ Closed **${collab.name}** successfully.`,
-    components:[]
-  });
-}
-
-// =====================================================
-// SUBMIT BUTTONS
-// =====================================================
-if (interaction.isButton()) {
-
-  const [type,collabId] = interaction.customId.split('_');
-
-  const collab = db.prepare(
-    'SELECT * FROM collabs WHERE id = ?'
-  ).get(collabId);
-
-  if (!collab || collab.status !== 'active' || Date.now() > collab.deadline) {
-    return interaction.reply({
-      content:'❌ This collab is closed.',
-      ephemeral:true
-    });
-  }
-
-// ===== Contest
-if (type === 'contest') {
-
-  const tierSelect = new StringSelectMenuBuilder()
-  .setCustomId(`chooseTier_${collabId}`)
-  .setPlaceholder('Choose Tier')
-  .addOptions(
-    {label:'T1',value:'T1'},
-    {label:'T2',value:'T2'},
-    {label:'T3',value:'T3'}
-  );
-
-  return interaction.reply({
-    content:'Choose your Tier:',
-    components:[new ActionRowBuilder().addComponents(tierSelect)],
-    ephemeral:true
-  });
-}
-
-// ===== Wallet
-if (type === 'wallet') {
-
-  const rows = db.prepare(
-    `SELECT id, community FROM submissions
-     WHERE collab_id = ? AND user_id = ? AND sheet_link IS NULL`
-  ).all(collabId,interaction.user.id);
-
-  if (!rows.length) {
-    return interaction.reply({
-      content:'❌ You have no pending contest to attach a wallet to.',
-      ephemeral:true
-    });
-  }
-
-  if (rows.length === 1) {
-
-    const rowId = rows[0].id;
-
-    const modal = new ModalBuilder()
-    .setCustomId(`walletModal_${rowId}`)
-    .setTitle('Submit Wallet Sheet');
-
-    const sheetInput = new TextInputBuilder()
-    .setCustomId('sheet_link')
-    .setLabel('Wallet Sheet Link')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(sheetInput)
+  // =====================================================
+  // COLLAB STATUS SELECT (Active / Closed)
+  // =====================================================
+  if (interaction.isStringSelectMenu() && interaction.customId === 'collab_status_select') {
+
+    const status = interaction.values[0];
+    const page = 0;
+    const pageSize = 10;
+
+    const rows = db.prepare(
+      "SELECT * FROM collabs WHERE status = ? ORDER BY id DESC"
+    ).all(status);
+
+    const pageItems = rows.slice(page * pageSize, (page + 1) * pageSize);
+
+    const lines = pageItems.length
+      ? pageItems.map(r => {
+          const icon = r.status === 'active' ? '🟢' : '🔴';
+          return ${icon} ${r.name};
+        }).join('\n')
+      : 'No collabs found.';
+
+    const maxPage = Math.floor((rows.length - 1) / pageSize);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`collab_prev_${status}_${page}`)
+        .setLabel('⬅ Prev')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(true),
+
+      new ButtonBuilder()
+        .setCustomId(`collab_next_${status}_${page}`)
+        .setLabel('Next ➡')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(maxPage === 0)
     );
 
-    return interaction.showModal(modal);
-  }
-
-  const select = new StringSelectMenuBuilder()
-  .setCustomId('chooseWalletRow')
-  .setPlaceholder('Choose community to attach wallet')
-  .addOptions(
-    rows.map(r => ({
-      label:r.community,
-      value:String(r.id)
-    }))
-  );
-
-  return interaction.reply({
-    content:'Choose which community this wallet belongs to:',
-    components:[new ActionRowBuilder().addComponents(select)],
-    ephemeral:true
-  });
-
-}
-}
-
-// =====================================================
-// CHOOSE TIER
-// =====================================================
-if (interaction.isStringSelectMenu() && interaction.customId.startsWith('chooseTier_')) {
-
-  const collabId2 = interaction.customId.split('_')[1];
-  const tier = interaction.values[0];
-
-  const communities = TIERS[tier] || [];
-
-  if (!communities.length) {
     return interaction.update({
-      content:'❌ No communities for this tier.',
-      components:[]
+      content: 📊 **${status.toUpperCase()} Collabs**\n\n${lines},
+      components: [row]
     });
   }
 
-  const communitySelect = new StringSelectMenuBuilder()
-  .setCustomId(`chooseCommunity_${collabId2}_${tier}`)
-  .setPlaceholder('Choose Community')
-  .addOptions(
-    communities.map(c => ({
-      label:c,
-      value:c
-    }))
-  );
+  // =====================================================
+  // PAGINATION
+  // =====================================================
+  if (interaction.isButton() && (
+    interaction.customId.startsWith('collab_next_') ||
+    interaction.customId.startsWith('collab_prev_')
+  )) {
 
-  return interaction.update({
-    content:`Choose community for **${tier}**:`,
-    components:[new ActionRowBuilder().addComponents(communitySelect)]
-  });
-}
+    const parts = interaction.customId.split('_');
+    const status = parts[2];
+    let page = parseInt(parts[3]);
 
-// =====================================================
-// COMMUNITY CHOSEN
-// =====================================================
-if (interaction.isStringSelectMenu() && interaction.customId.startsWith('chooseCommunity_')) {
+    if (interaction.customId.startsWith('collab_next_')) page++;
+    else page--;
 
-  const parts = interaction.customId.split('_');
+    if (page < 0) page = 0;
 
-  const collabId3 = parts[1];
-  const tier = parts[2];
-  const community = interaction.values[0];
+    const pageSize = 10;
 
-  const modal = new ModalBuilder()
-  .setCustomId(`contestModal_${collabId3}_${tier}_${encodeURIComponent(community)}`)
-  .setTitle('Submit Raffle / Contest Links');
+    const rows = db.prepare(
+      "SELECT * FROM collabs WHERE status = ? ORDER BY id DESC"
+    ).all(status);
 
-  const contestInput = new TextInputBuilder()
-  .setCustomId('contest_link')
-  .setLabel('Raffle / Contest Links (you can add multiple)')
-  .setStyle(TextInputStyle.Paragraph)
-  .setRequired(true);
+    const maxPage = Math.floor((rows.length - 1) / pageSize);
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(contestInput)
-  );
+    if (page > maxPage) page = maxPage;
 
-  return interaction.showModal(modal);
-}
+    const pageItems = rows.slice(page * pageSize, (page + 1) * pageSize);
 
-// =====================================================
-// WALLET SELECT
-// =====================================================
-if (interaction.isStringSelectMenu() && interaction.customId === 'chooseWalletRow') {
+    const lines = pageItems.length
+      ? pageItems.map(r => {
+          const icon = r.status === 'active' ? '🟢' : '🔴';
+          return ${icon} ${r.name};
+        }).join('\n')
+      : 'No collabs found.';
 
-  const rowId = interaction.values[0];
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`collab_prev_${status}_${page}`)
+        .setLabel('⬅ Prev')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page === 0),
 
-  const modal = new ModalBuilder()
-  .setCustomId(`walletModal_${rowId}`)
-  .setTitle('Submit Wallet Sheet');
+      new ButtonBuilder()
+        .setCustomId(`collab_next_${status}_${page}`)
+        .setLabel('Next ➡')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page >= maxPage)
+    );
 
-  const sheetInput = new TextInputBuilder()
-  .setCustomId('sheet_link')
-  .setLabel('Wallet Sheet Link')
-  .setStyle(TextInputStyle.Short)
-  .setRequired(true);
+    return interaction.update({
+      content: 📊 **${status.toUpperCase()} Collabs**\n\n${lines},
+      components: [row]
+    });
+  }
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(sheetInput)
-  );
+  // =====================================================
+  // EXPORT CSV
+  // =====================================================
+  if (interaction.isButton() && interaction.customId === 'export_csv') {
 
-  return interaction.showModal(modal);
-}
+    const rows = db.prepare(
+      "SELECT id, name FROM collabs ORDER BY id DESC"
+    ).all();
+
+    if (!rows.length) {
+      return interaction.reply({ content: 'No collabs.', ephemeral: true });
+    }
+
+    const select = new StringSelectMenuBuilder()
+      .setCustomId('select_export')
+      .setPlaceholder('Choose collab')
+      .addOptions(
+        rows.map(r => ({
+          label: r.name,
+          value: String(r.id)
+        }))
+      );
+
+    return interaction.reply({
+      content: 'Choose collab to export:',
+      components: [new ActionRowBuilder().addComponents(select)],
+      ephemeral: true
+    });
+  }
+
+  // =====================================================
+  // EXPORT SELECT
+  // =====================================================
+  if (interaction.isStringSelectMenu() && interaction.customId === 'select_export') {
+
+    const collabId = interaction.values[0];
+
+    const data = db.prepare(
+      "SELECT * FROM submissions WHERE collab_id = ?"
+    ).all(collabId);
+
+    let csv = "sheet_link,raffle_links,username,community\n";
+
+    for (const r of data) {
+      csv += "${r.sheet_link || ''}","${r.contest_link || ''}","${r.username || ''}","${r.community || ''}"\n;
+    }
+
+    const filePath = export_${collabId}.csv;
+
+    fs.writeFileSync(filePath, csv);
+
+    await interaction.reply({
+      content: "Here is your CSV:",
+      files: [new AttachmentBuilder(filePath)],
+      ephemeral: true
+    });
+
+    fs.unlinkSync(filePath);
+  }
 
 }
 
 module.exports = { handleButton };
+      
+     
