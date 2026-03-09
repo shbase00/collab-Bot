@@ -1,16 +1,3 @@
-// --- Prevent multiple instances on Railway ---
-if (process.env.INSTANCE_ID && process.env.INSTANCE_ID !== "0") {
-  console.log("Secondary instance detected, exiting.");
-  process.exit(0);
-}
-console.log("BOT STARTING...");
-// Prevent running multiple instances
-if (global.__bot_running__) {
-  console.log("Bot already running. Exiting second instance.");
-  process.exit(0);
-}
-global.__bot_running__ = true;
-
 require('dotenv').config();
 
 console.log("BOT STARTING...");
@@ -55,6 +42,7 @@ if (!fs.existsSync(commandsPath)) {
       console.error("❌ Error loading command:", file, err);
     }
   }
+
 }
 
 // ====== Helpers: Ensure Categories & Channels ======
@@ -135,9 +123,11 @@ async function autoCloseExpiredCollabs() {
         if (!collab.channel_id) continue;
 
         const channel = await client.channels.fetch(collab.channel_id).catch(() => null);
+
         if (!channel || !channel.guild) continue;
 
         const guild = channel.guild;
+
         const { closedCat, logs } = await ensureStructure(guild);
 
         let newName = channel.name;
