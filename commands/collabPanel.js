@@ -1,45 +1,41 @@
 const {
-  SlashCommandBuilder,
-  PermissionFlagsBits,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  StringSelectMenuBuilder
+SlashCommandBuilder,
+PermissionFlagsBits,
+ActionRowBuilder,
+ButtonBuilder,
+ButtonStyle,
+StringSelectMenuBuilder
 } = require('discord.js');
 
+const db = require('../db');
+
+const PAGE_SIZE = 10;
+
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('collab_panel')
-    .setDescription('Show collabs panel and export CSV')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-  async execute(interaction) {
+data: new SlashCommandBuilder()
+.setName('collab_panel')
+.setDescription('View collabs')
+.setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-    await interaction.deferReply({ ephemeral: true });
+async execute(interaction) {
 
-    // ===== Select menu for status =====
-    const select = new StringSelectMenuBuilder()
-      .setCustomId('collab_status_select')
-      .setPlaceholder('Choose collab status')
-      .addOptions([
-        {
-          label: 'Active Collabs',
-          value: 'active',
-          emoji: '🟢'
-        },
-        {
-          label: 'Closed Collabs',
-          value: 'closed',
-          emoji: '🔴'
-        }
-      ]);
+await interaction.reply({
+content:"Choose which collabs you want to view:",
+components:[
+new ActionRowBuilder().addComponents(
+new StringSelectMenuBuilder()
+.setCustomId("collab_type")
+.setPlaceholder("Select collab type")
+.addOptions([
+{label:"Active Collabs",value:"active"},
+{label:"Closed Collabs",value:"closed"}
+])
+)
+],
+ephemeral:true
+});
 
-    const row = new ActionRowBuilder().addComponents(select);
+}
 
-    await interaction.editReply({
-      content: 'Choose which collabs to view:',
-      components: [row]
-    });
-
-  }
 };
