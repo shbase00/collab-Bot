@@ -11,16 +11,19 @@ const client = new Client({
 
 // ====== Load Commands ======
 client.commands = new Collection();
+
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
+
   const filePath = path.join(commandsPath, file);
   const command = require(filePath);
 
   if ('data' in command && 'execute' in command) {
     client.commands.set(command.data.name, command);
   }
+
 }
 
 // ====== Helpers: Ensure Categories & Channels ======
@@ -54,6 +57,7 @@ async function ensureStructure(guild) {
   );
 
   if (!ann) {
+
     ann = await guild.channels.create({
       name: 'collabs-announcements',
       type: ChannelType.GuildText,
@@ -61,6 +65,7 @@ async function ensureStructure(guild) {
         { id: guild.roles.everyone.id, deny: [PermissionsBitField.Flags.SendMessages] }
       ]
     });
+
   }
 
   // Logs Channel
@@ -69,6 +74,7 @@ async function ensureStructure(guild) {
   );
 
   if (!logs) {
+
     logs = await guild.channels.create({
       name: 'logs',
       type: ChannelType.GuildText,
@@ -76,9 +82,11 @@ async function ensureStructure(guild) {
         { id: guild.roles.everyone.id, deny: [PermissionsBitField.Flags.SendMessages] }
       ]
     });
+
   }
 
   return { activeCat, closedCat, ann, logs };
+
 }
 
 // ====== Interaction Handlers ======
@@ -107,9 +115,9 @@ async function autoCloseExpiredCollabs() {
         if (!channel || !channel.guild) continue;
 
         const guild = channel.guild;
+
         const { closedCat, logs } = await ensureStructure(guild);
 
-        // Rename channel
         let newName = channel.name;
 
         if (!newName.startsWith('🔴')) {
@@ -118,15 +126,15 @@ async function autoCloseExpiredCollabs() {
 
         await channel.setName(newName).catch(() => {});
         await channel.setParent(closedCat.id).catch(() => {});
+
         await channel.permissionOverwrites
           .edit(guild.roles.everyone, { SendMessages: false })
           .catch(() => {});
 
-        // Update DB
-        db.prepare("UPDATE collabs SET status = 'closed' WHERE id = ?")
-          .run(collab.id);
+        db.prepare(
+          "UPDATE collabs SET status = 'closed' WHERE id = ?"
+        ).run(collab.id);
 
-        // Count submissions
         const contestCount = db.prepare(
           "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND contest_link IS NOT NULL AND contest_link != ''"
         ).get(collab.id).n;
@@ -158,7 +166,7 @@ async function autoCloseExpiredCollabs() {
 }
 
 // ====== Ready ======
-client.once('ready', () => {
+client.once('clientReady', () => {
 
   console.log(`✅ Logged in as ${client.user.tag}`);
 
@@ -175,7 +183,6 @@ client.on('interactionCreate', async interaction => {
 
   try {
 
-    // Slash Commands
     if (interaction.isChatInputCommand()) {
 
       const command = client.commands.get(interaction.commandName);
@@ -186,7 +193,6 @@ client.on('interactionCreate', async interaction => {
 
     }
 
-    // Buttons / Select Menus
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
 
       await handleButton(interaction);
@@ -194,7 +200,6 @@ client.on('interactionCreate', async interaction => {
 
     }
 
-    // Modals
     if (interaction.isModalSubmit()) {
 
       await handleModal(interaction);
