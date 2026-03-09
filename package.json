@@ -1,17 +1,8 @@
 {
   "name": "collab-bot",
   "version": "1.0.0",
-  "type": "commonjs",
   "main": "index.js",
-
-  "scripts": {
-    "start": "node index.js"
-  },
-
-  "engines": {
-    "node": "20.x"
-  },
-
+  "type": "commonjs",
   "dependencies": {
     "better-sqlite3": "^12.6.2",
     "discord.js": "^14.25.1",
