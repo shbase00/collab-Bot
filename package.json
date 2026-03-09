@@ -1,21 +1,16 @@
 {
   "name": "collab-bot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "type": "commonjs",
-
-  "engines": {
-    "node": "20.x"
-  },
+  "main": "index.js",
 
   "scripts": {
     "start": "node index.js"
   },
 
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "engines": {
+    "node": "20.x"
+  },
 
   "dependencies": {
     "better-sqlite3": "^12.6.2",
