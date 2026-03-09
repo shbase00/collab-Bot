@@ -7,26 +7,42 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits, ChannelType, PermissionsBitField } = require('discord.js');
 const db = require('./db');
 
-// show tables inside database
+// ===== DATABASE DEBUG =====
 try {
+
   const tables = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table'"
   ).all();
 
   console.log("TABLES:", tables);
-  
-  const count = db.prepare("SELECT COUNT(*) as c FROM collabs").get();
-console.log("COLLABS COUNT:", count);
+
+  const count = db.prepare(
+    "SELECT COUNT(*) as c FROM collabs"
+  ).get();
+
+  console.log("COLLABS COUNT:", count);
+
+  // ⭐ معرفة قيم status الموجودة
+  const statuses = db.prepare(
+    "SELECT DISTINCT status FROM collabs"
+  ).all();
+
+  console.log("STATUSES:", statuses);
+
 } catch (err) {
   console.log("Error reading tables:", err);
 }
-// show DB size
+
+// ===== DB SIZE =====
 try {
+
   const stats = fs.statSync("/data/collabs.db");
   console.log("DB SIZE:", stats.size);
+
 } catch (err) {
   console.log("Error reading DB size:", err);
 }
+
 console.log("Database path: /data/collabs.db");
 
 // ====== Create Client ======
@@ -48,19 +64,23 @@ if (!fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
   for (const file of commandFiles) {
+
     try {
 
       const filePath = path.join(commandsPath, file);
       const command = require(filePath);
 
       if ('data' in command && 'execute' in command) {
+
         client.commands.set(command.data.name, command);
         console.log("✅ Loaded command:", command.data.name);
+
       }
 
     } catch (err) {
       console.error("❌ Error loading command:", file, err);
     }
+
   }
 
 }
@@ -125,84 +145,10 @@ async function ensureStructure(guild) {
 const { handleButton } = require('./interactions/buttons');
 const { handleModal } = require('./interactions/modals');
 
-// ====== Auto Close Logic ======
-async function autoCloseExpiredCollabs() {
-
-  try {
-
-    const now = Date.now();
-
-    const expired = db.prepare(
-      "SELECT * FROM collabs WHERE status = 'active' AND deadline <= ?"
-    ).all(now);
-
-    for (const collab of expired) {
-
-      try {
-
-        if (!collab.channel_id) continue;
-
-        const channel = await client.channels.fetch(collab.channel_id).catch(() => null);
-
-        if (!channel || !channel.guild) continue;
-
-        const guild = channel.guild;
-
-        const { closedCat, logs } = await ensureStructure(guild);
-
-        let newName = channel.name;
-
-        if (!newName.startsWith('🔴')) {
-          newName = `🔴-${newName.replace(/^🟢-/, '')}`;
-        }
-
-        await channel.setName(newName).catch(() => {});
-        await channel.setParent(closedCat.id).catch(() => {});
-        await channel.permissionOverwrites
-          .edit(guild.roles.everyone, { SendMessages: false })
-          .catch(() => {});
-
-        db.prepare("UPDATE collabs SET status = 'closed' WHERE id = ?")
-          .run(collab.id);
-
-        const contestCount = db.prepare(
-          "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND contest_link IS NOT NULL AND contest_link != ''"
-        ).get(collab.id).n;
-
-        const walletCount = db.prepare(
-          "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND sheet_link IS NOT NULL AND sheet_link != ''"
-        ).get(collab.id).n;
-
-        if (logs) {
-
-          await logs.send(
-            `🔴 **Auto Closed Collab:** ${collab.name}\n` +
-            `📝 Contest submissions: **${contestCount}**\n` +
-            `💼 Wallet sheets: **${walletCount}**`
-          );
-
-        }
-
-      } catch (e) {
-        console.error('Auto-close error for collab:', collab.id, e);
-      }
-    }
-
-  } catch (err) {
-    console.error('Auto-close loop error:', err);
-  }
-}
-
 // ====== Ready ======
 client.once('ready', () => {
 
   console.log(`✅ Logged in as ${client.user.tag}`);
-
-  autoCloseExpiredCollabs();
-
-  setInterval(() => {
-    autoCloseExpiredCollabs();
-  }, 10 * 60 * 1000);
 
 });
 
@@ -281,14 +227,9 @@ http.createServer((req, res) => {
 console.log("Connecting to Discord...");
 
 client.login(process.env.DISCORD_TOKEN)
-  .then(() => {
-    console.log("Discord login success");
-  })
-  .catch(err => {
-    console.error("Discord login error:", err);
-  });
-
-
-
-
-
+.then(() => {
+  console.log("Discord login success");
+})
+.catch(err => {
+  console.error("Discord login error:", err);
+});
