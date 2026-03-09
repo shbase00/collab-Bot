@@ -255,10 +255,10 @@ client.on('interactionCreate', async interaction => {
 
 });
 
-// ====== LOGIN (آخر سطر في الملف) ======
+// ===== Health server for Railway =====
 const http = require("http");
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 http.createServer((req, res) => {
   res.writeHead(200);
@@ -267,14 +267,13 @@ http.createServer((req, res) => {
   console.log("Health server running on port", PORT);
 });
 
+// ===== Login =====
 console.log("Connecting to Discord...");
 
 client.login(process.env.DISCORD_TOKEN)
   .then(() => {
-    console.log("✅ LOGIN SUCCESS");
+    console.log("Discord login success");
   })
   .catch(err => {
-    console.error("❌ LOGIN ERROR:", err);
+    console.error("Discord login error:", err);
   });
-
-
