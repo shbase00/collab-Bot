@@ -1,3 +1,9 @@
+// --- Prevent multiple instances on Railway ---
+if (process.env.INSTANCE_ID && process.env.INSTANCE_ID !== "0") {
+  console.log("Secondary instance detected, exiting.");
+  process.exit(0);
+}
+console.log("BOT STARTING...");
 // Prevent running multiple instances
 if (global.__bot_running__) {
   console.log("Bot already running. Exiting second instance.");
@@ -270,4 +276,5 @@ client.login(process.env.DISCORD_TOKEN)
   .catch(err => {
     console.error("❌ LOGIN ERROR:", err);
   });
+
 
