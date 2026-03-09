@@ -11,9 +11,7 @@ console.log("Database path: /data/collabs.db");
 
 // ====== Create Client ======
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds
-  ]
+  intents: [GatewayIntentBits.Guilds]
 });
 
 // ====== Load Commands ======
@@ -30,36 +28,32 @@ if (!fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
   for (const file of commandFiles) {
-
     try {
 
       const filePath = path.join(commandsPath, file);
-
       const command = require(filePath);
 
       if ('data' in command && 'execute' in command) {
-
         client.commands.set(command.data.name, command);
-
         console.log("✅ Loaded command:", command.data.name);
-
       }
 
     } catch (err) {
-
       console.error("❌ Error loading command:", file, err);
-
     }
-
   }
-
 }
 
 // ====== Helpers: Ensure Categories & Channels ======
 async function ensureStructure(guild) {
 
-  let activeCat = guild.channels.cache.find(c => c.name === 'collabs-active' && c.type === ChannelType.GuildCategory);
-  let closedCat = guild.channels.cache.find(c => c.name === 'collabs-closed' && c.type === ChannelType.GuildCategory);
+  let activeCat = guild.channels.cache.find(
+    c => c.name === 'collabs-active' && c.type === ChannelType.GuildCategory
+  );
+
+  let closedCat = guild.channels.cache.find(
+    c => c.name === 'collabs-closed' && c.type === ChannelType.GuildCategory
+  );
 
   if (!activeCat) {
     activeCat = await guild.channels.create({
@@ -75,7 +69,9 @@ async function ensureStructure(guild) {
     });
   }
 
-  let ann = guild.channels.cache.find(c => c.name === 'collabs-announcements' && c.type === ChannelType.GuildText);
+  let ann = guild.channels.cache.find(
+    c => c.name === 'collabs-announcements' && c.type === ChannelType.GuildText
+  );
 
   if (!ann) {
     ann = await guild.channels.create({
@@ -87,7 +83,9 @@ async function ensureStructure(guild) {
     });
   }
 
-  let logs = guild.channels.cache.find(c => c.name === 'logs' && c.type === ChannelType.GuildText);
+  let logs = guild.channels.cache.find(
+    c => c.name === 'logs' && c.type === ChannelType.GuildText
+  );
 
   if (!logs) {
     logs = await guild.channels.create({
@@ -124,11 +122,9 @@ async function autoCloseExpiredCollabs() {
         if (!collab.channel_id) continue;
 
         const channel = await client.channels.fetch(collab.channel_id).catch(() => null);
-
         if (!channel || !channel.guild) continue;
 
         const guild = channel.guild;
-
         const { closedCat, logs } = await ensureStructure(guild);
 
         let newName = channel.name;
@@ -139,9 +135,12 @@ async function autoCloseExpiredCollabs() {
 
         await channel.setName(newName).catch(() => {});
         await channel.setParent(closedCat.id).catch(() => {});
-        await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false }).catch(() => {});
+        await channel.permissionOverwrites
+          .edit(guild.roles.everyone, { SendMessages: false })
+          .catch(() => {});
 
-        db.prepare("UPDATE collabs SET status = 'closed' WHERE id = ?").run(collab.id);
+        db.prepare("UPDATE collabs SET status = 'closed' WHERE id = ?")
+          .run(collab.id);
 
         const contestCount = db.prepare(
           "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND contest_link IS NOT NULL AND contest_link != ''"
@@ -162,19 +161,13 @@ async function autoCloseExpiredCollabs() {
         }
 
       } catch (e) {
-
         console.error('Auto-close error for collab:', collab.id, e);
-
       }
-
     }
 
   } catch (err) {
-
     console.error('Auto-close loop error:', err);
-
   }
-
 }
 
 // ====== Ready ======
@@ -185,9 +178,7 @@ client.once('ready', () => {
   autoCloseExpiredCollabs();
 
   setInterval(() => {
-
     autoCloseExpiredCollabs();
-
   }, 10 * 60 * 1000);
 
 });
@@ -200,11 +191,9 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
 
       const command = client.commands.get(interaction.commandName);
-
       if (!command) return;
 
       await command.execute(interaction, client, ensureStructure);
-
       return;
 
     }
@@ -212,7 +201,6 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
 
       await handleButton(interaction);
-
       return;
 
     }
@@ -220,7 +208,6 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isModalSubmit()) {
 
       await handleModal(interaction);
-
       return;
 
     }
@@ -233,28 +220,28 @@ client.on('interactionCreate', async interaction => {
 
       if (interaction.replied || interaction.deferred) {
 
-        await interaction.followUp({ content: '❌ Error happened.', ephemeral: true });
+        await interaction.followUp({
+          content: '❌ Error happened.',
+          ephemeral: true
+        });
 
       } else {
 
-        await interaction.reply({ content: '❌ Error happened.', ephemeral: true });
+        await interaction.reply({
+          content: '❌ Error happened.',
+          ephemeral: true
+        });
 
       }
 
     } catch (e) {
-
       console.error('Failed to send error reply:', e);
-
     }
 
   }
 
 });
 
-// ====== Login ======
-console.log("TOKEN EXISTS:", !!process.env.DISCORD_TOKEN);
-console.log("TOKEN LENGTH:", process.env.DISCORD_TOKEN?.length);
-
-console.log("REACHED LOGIN");
+// ====== LOGIN (آخر سطر في الملف) ======
+console.log("Connecting to Discord...");
 client.login(process.env.DISCORD_TOKEN);
-
