@@ -1,6 +1,15 @@
 const Database = require('better-sqlite3');
+const fs = require('fs');
 
+// Railway volume path
 const dbPath = process.env.DB_PATH || '/data/collabs.db';
+
+// تأكد أن مجلد /data موجود
+const dbDir = '/data';
+
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 
 console.log("Database path:", dbPath);
 
