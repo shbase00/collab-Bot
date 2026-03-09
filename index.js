@@ -8,7 +8,6 @@ const { Client, Collection, GatewayIntentBits, ChannelType, PermissionsBitField 
 const db = require('./db');
 
 // ===== DEBUG: show files inside volume =====
-const fs = require("fs");
 
 try {
   const files = fs.readdirSync("/data");
@@ -277,4 +276,5 @@ client.login(process.env.DISCORD_TOKEN)
   .catch(err => {
     console.error("Discord login error:", err);
   });
+
 
