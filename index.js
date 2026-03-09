@@ -7,13 +7,16 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits, ChannelType, PermissionsBitField } = require('discord.js');
 const db = require('./db');
 
+// show tables inside database
 try {
-  const files = fs.readdirSync("/data");
-  console.log("FILES IN /data:", files);
-} catch (err) {
-  console.log("Error reading /data:", err);
-}
+  const tables = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table'"
+  ).all();
 
+  console.log("TABLES:", tables);
+} catch (err) {
+  console.log("Error reading tables:", err);
+}
 // show DB size
 try {
   const stats = fs.statSync("/data/collabs.db");
@@ -281,6 +284,7 @@ client.login(process.env.DISCORD_TOKEN)
   .catch(err => {
     console.error("Discord login error:", err);
   });
+
 
 
 
