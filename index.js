@@ -1,9 +1,13 @@
 require('dotenv').config();
+
 console.log("BOT STARTING...");
+
 const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, ChannelType, PermissionsBitField } = require('discord.js');
 const db = require('./db');
+
+console.log("Database path: /data/collabs.db");
 
 // ====== Create Client ======
 const client = new Client({
@@ -50,9 +54,10 @@ if (!fs.existsSync(commandsPath)) {
   }
 
 }
+
 // ====== Helpers: Ensure Categories & Channels ======
 async function ensureStructure(guild) {
-  // Categories
+
   let activeCat = guild.channels.cache.find(c => c.name === 'collabs-active' && c.type === ChannelType.GuildCategory);
   let closedCat = guild.channels.cache.find(c => c.name === 'collabs-closed' && c.type === ChannelType.GuildCategory);
 
@@ -70,8 +75,8 @@ async function ensureStructure(guild) {
     });
   }
 
-  // Announcement Channel
   let ann = guild.channels.cache.find(c => c.name === 'collabs-announcements' && c.type === ChannelType.GuildText);
+
   if (!ann) {
     ann = await guild.channels.create({
       name: 'collabs-announcements',
@@ -82,8 +87,8 @@ async function ensureStructure(guild) {
     });
   }
 
-  // Logs Channel
   let logs = guild.channels.cache.find(c => c.name === 'logs' && c.type === ChannelType.GuildText);
+
   if (!logs) {
     logs = await guild.channels.create({
       name: 'logs',
@@ -103,24 +108,31 @@ const { handleModal } = require('./interactions/modals');
 
 // ====== Auto Close Logic ======
 async function autoCloseExpiredCollabs() {
+
   try {
+
     const now = Date.now();
+
     const expired = db.prepare(
       "SELECT * FROM collabs WHERE status = 'active' AND deadline <= ?"
     ).all(now);
 
     for (const collab of expired) {
+
       try {
+
         if (!collab.channel_id) continue;
 
         const channel = await client.channels.fetch(collab.channel_id).catch(() => null);
+
         if (!channel || !channel.guild) continue;
 
         const guild = channel.guild;
+
         const { closedCat, logs } = await ensureStructure(guild);
 
-        // Rename channel to closed (add 🔴)
         let newName = channel.name;
+
         if (!newName.startsWith('🔴')) {
           newName = `🔴-${newName.replace(/^🟢-/, '')}`;
         }
@@ -129,10 +141,8 @@ async function autoCloseExpiredCollabs() {
         await channel.setParent(closedCat.id).catch(() => {});
         await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false }).catch(() => {});
 
-        // Update DB
         db.prepare("UPDATE collabs SET status = 'closed' WHERE id = ?").run(collab.id);
 
-        // Count submissions
         const contestCount = db.prepare(
           "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND contest_link IS NOT NULL AND contest_link != ''"
         ).get(collab.id).n;
@@ -141,70 +151,104 @@ async function autoCloseExpiredCollabs() {
           "SELECT COUNT(*) as n FROM submissions WHERE collab_id = ? AND sheet_link IS NOT NULL AND sheet_link != ''"
         ).get(collab.id).n;
 
-        // Log
         if (logs) {
+
           await logs.send(
             `🔴 **Auto Closed Collab:** ${collab.name}\n` +
             `📝 Contest submissions: **${contestCount}**\n` +
             `💼 Wallet sheets: **${walletCount}**`
           );
+
         }
+
       } catch (e) {
+
         console.error('Auto-close error for collab:', collab.id, e);
+
       }
+
     }
+
   } catch (err) {
+
     console.error('Auto-close loop error:', err);
+
   }
+
 }
 
 // ====== Ready ======
 client.once('ready', () => {
+
   console.log(`✅ Logged in as ${client.user.tag}`);
 
-  // Run once on startup
   autoCloseExpiredCollabs();
 
-  // Then every 10 minutes
   setInterval(() => {
+
     autoCloseExpiredCollabs();
-  }, 10 * 60 * 1000); // 10 minutes
+
+  }, 10 * 60 * 1000);
+
 });
 
 // ====== Interaction Create ======
 client.on('interactionCreate', async interaction => {
+
   try {
-    // Slash Commands
+
     if (interaction.isChatInputCommand()) {
+
       const command = client.commands.get(interaction.commandName);
+
       if (!command) return;
+
       await command.execute(interaction, client, ensureStructure);
+
       return;
+
     }
 
-    // Buttons or Select Menus
     if (interaction.isButton() || interaction.isStringSelectMenu()) {
+
       await handleButton(interaction);
+
       return;
+
     }
 
-    // Modals
     if (interaction.isModalSubmit()) {
+
       await handleModal(interaction);
+
       return;
+
     }
+
   } catch (err) {
+
     console.error(err);
+
     try {
+
       if (interaction.replied || interaction.deferred) {
+
         await interaction.followUp({ content: '❌ Error happened.', ephemeral: true });
+
       } else {
+
         await interaction.reply({ content: '❌ Error happened.', ephemeral: true });
+
       }
+
     } catch (e) {
+
       console.error('Failed to send error reply:', e);
+
     }
+
   }
+
 });
 
 // ====== Login ======
