@@ -244,4 +244,10 @@ client.on('interactionCreate', async interaction => {
 
 // ====== LOGIN (آخر سطر في الملف) ======
 console.log("Connecting to Discord...");
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN)
+  .then(() => {
+    console.log("✅ LOGIN SUCCESS");
+  })
+  .catch(err => {
+    console.error("❌ LOGIN ERROR:", err);
+  });
