@@ -1,53 +1,50 @@
 const Database = require('better-sqlite3');
 const fs = require('fs');
+const path = require('path');
 
-// Railway volume path
-const dbPath = process.env.DB_PATH || '/data/collabs.db';
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'collabs.db');
 
-// تأكد أن مجلد /data موجود
-const dbDir = '/data';
-
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+// Make sure the folder exists
+const dir = path.dirname(DB_PATH);
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir, { recursive: true });
 }
 
-console.log("Database path:", dbPath);
+const db = new Database(DB_PATH);
 
-const db = new Database(dbPath);
-
-// ===== Create tables =====
-
+// ====== Create tables if they don't exist ======
 db.prepare(`
-CREATE TABLE IF NOT EXISTS collabs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT,
-  description TEXT,
-  supply TEXT,
-  date TEXT,
-  price TEXT,
-  spots TEXT,
-  requirements TEXT,
-  note TEXT,
-  image TEXT,
-  deadline INTEGER,
-  channel_id TEXT,
-  status TEXT
-)
+  CREATE TABLE IF NOT EXISTS collabs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    description TEXT,
+    supply TEXT,
+    date TEXT,
+    price TEXT,
+    spots TEXT,
+    requirements TEXT,
+    note TEXT,
+    image TEXT,
+    deadline INTEGER,
+    channel_id TEXT,
+    status TEXT DEFAULT 'active'
+  )
 `).run();
 
 db.prepare(`
-CREATE TABLE IF NOT EXISTS submissions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  collab_id INTEGER,
-  user_id TEXT,
-  username TEXT,
-  tier TEXT,
-  community TEXT,
-  contest_link TEXT,
-  sheet_link TEXT,
-  contest_time INTEGER,
-  sheet_time INTEGER
-)
+  CREATE TABLE IF NOT EXISTS submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collab_id INTEGER,
+    user_id TEXT,
+    username TEXT,
+    tier TEXT,
+    community TEXT,
+    contest_link TEXT,
+    contest_time INTEGER,
+    sheet_link TEXT,
+    sheet_time INTEGER
+  )
 `).run();
 
+// ====== IMPORTANT: Export the db so other files can use it ======
 module.exports = db;
